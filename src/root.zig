@@ -4,7 +4,8 @@ const testing = std.testing;
 /// Library root - export public API here
 pub const version = "0.1.0";
 
-/// Example function that can be used as a library
+/// Example function that can be used as a library.
+/// Caller owns the returned memory and must free it using the provided allocator.
 pub fn greet(allocator: std.mem.Allocator, name: []const u8) ![]const u8 {
     return std.fmt.allocPrint(allocator, "Hello, {s}!", .{name});
 }
