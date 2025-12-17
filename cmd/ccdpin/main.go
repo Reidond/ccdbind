@@ -27,6 +27,7 @@ const (
 	envOSCPUs   = "STEAM_CCD_OS_CPUS"
 	envSwap     = "STEAM_CCD_SWAP"
 	envNoOSPin  = "STEAM_CCD_NO_OS_PIN"
+	envNoScope  = "STEAM_CCD_NO_SCOPE"
 	envOSSlices = "STEAM_CCD_OS_SLICES"
 	envDebug    = "STEAM_CCD_DEBUG"
 )
@@ -39,6 +40,7 @@ type options struct {
 	swap  bool
 
 	noOSPin bool
+	noScope bool
 
 	gameCPUs string
 	osCPUs   string
@@ -50,6 +52,7 @@ type resolved struct {
 	ccds     []string
 
 	noOSPin  bool
+	noScope  bool
 	osSlices []string
 	debug    bool
 }
@@ -88,6 +91,9 @@ func main() {
 		cancel()
 	}()
 
+	logInfo("game_cpus=%s os_cpus=%s no_os_pin=%v", r.gameCPUs, r.osCPUs, r.noOSPin)
+	logInfo("command: %v", cmd)
+
 	sys := systemdctl.Systemctl{}
 	cleanup := func() {}
 	if !r.noOSPin {
@@ -104,7 +110,11 @@ func main() {
 		}
 	}
 
-	exitCode := runGame(ctx, sys, r.gameCPUs, cmd, r.debug)
+	startTime := time.Now()
+	logInfo("launching game...")
+	exitCode := runGame(ctx, sys, r.gameCPUs, cmd, r.debug, r.noScope)
+	duration := time.Since(startTime)
+	logInfo("game exited with code %d after %v", exitCode, duration)
 	cleanup()
 	os.Exit(exitCode)
 }
@@ -116,6 +126,7 @@ func parseArgs(args []string, out io.Writer, errOut io.Writer) (options, []strin
 	fs.BoolVar(&opts.print, "print", false, "print detected topology and selected CPU sets")
 	fs.BoolVar(&opts.swap, "swap", false, "swap OS and GAME CPU assignments")
 	fs.BoolVar(&opts.noOSPin, "no-os-pin", false, "do not pin OS slices")
+	fs.BoolVar(&opts.noScope, "no-scope", false, "skip systemd-run scope (use taskset only, for anti-cheat games)")
 	fs.StringVar(&opts.gameCPUs, "game-cpus", "", "override GAME CPU list")
 	fs.StringVar(&opts.osCPUs, "os-cpus", "", "override OS CPU list")
 	fs.Usage = func() {
@@ -125,7 +136,7 @@ func parseArgs(args []string, out io.Writer, errOut io.Writer) (options, []strin
 		fs.PrintDefaults()
 		fmt.Fprintln(out, "")
 		fmt.Fprintln(out, "environment overrides (compat):")
-		fmt.Fprintf(out, "  %s, %s, %s, %s, %s, %s\n", envGameCPUs, envOSCPUs, envSwap, envNoOSPin, envOSSlices, envDebug)
+		fmt.Fprintf(out, "  %s, %s, %s, %s, %s, %s, %s\n", envGameCPUs, envOSCPUs, envSwap, envNoOSPin, envNoScope, envOSSlices, envDebug)
 	}
 
 	if err := fs.Parse(args); err != nil {
@@ -137,6 +148,7 @@ func parseArgs(args []string, out io.Writer, errOut io.Writer) (options, []strin
 func resolve(opts options) (resolved, error) {
 	debug := parseBoolEnv(envDebug)
 	noOSPin := opts.noOSPin || parseBoolEnv(envNoOSPin)
+	noScope := opts.noScope || parseBoolEnv(envNoScope)
 	swap := opts.swap || parseBoolEnv(envSwap)
 
 	osSlices := parseSlicesEnv(os.Getenv(envOSSlices))
@@ -194,7 +206,7 @@ func resolve(opts options) (resolved, error) {
 		osCPUs, gameCPUs = gameCPUs, osCPUs
 	}
 
-	return resolved{osCPUs: osCPUs, gameCPUs: gameCPUs, ccds: det.Lists, noOSPin: noOSPin, osSlices: osSlices, debug: debug}, nil
+	return resolved{osCPUs: osCPUs, gameCPUs: gameCPUs, ccds: det.Lists, noOSPin: noOSPin, noScope: noScope, osSlices: osSlices, debug: debug}, nil
 }
 
 func printTopology(r resolved) {
@@ -255,19 +267,18 @@ func parseBoolEnv(k string) bool {
 	}
 }
 
-func runGame(ctx context.Context, sys systemdctl.Systemctl, gameCPUs string, cmd []string, debug bool) int {
+func runGame(ctx context.Context, sys systemdctl.Systemctl, gameCPUs string, cmd []string, debug bool, noScope bool) int {
 	userSystemd := userSystemdAvailable(ctx)
-	if userSystemd {
+	if userSystemd && !noScope {
 		ctx2, cancel := systemdctl.DefaultContext()
 		_ = sys.StartUnit(ctx2, "game.slice")
 		cancel()
 	}
 
-	if userSystemd && hasBinary("systemd-run") {
+	if userSystemd && hasBinary("systemd-run") && !noScope {
 		args := []string{
 			"--user",
 			"--scope",
-			"--wait",
 			"--quiet",
 			"--slice=game.slice",
 			"-p", "AllowedCPUs=" + gameCPUs,
@@ -275,7 +286,7 @@ func runGame(ctx context.Context, sys systemdctl.Systemctl, gameCPUs string, cmd
 		args = append(args, systemdRunSetenvArgs()...)
 		args = append(args, "--")
 		if hasBinary("taskset") {
-			args = append(args, "taskset", "-c", gameCPUs, "--")
+			args = append(args, "taskset", "-c", gameCPUs)
 			args = append(args, cmd...)
 			return runCmd(ctx, "systemd-run", args, debug)
 		}
@@ -284,7 +295,7 @@ func runGame(ctx context.Context, sys systemdctl.Systemctl, gameCPUs string, cmd
 	}
 
 	if hasBinary("taskset") {
-		args := append([]string{"-c", gameCPUs, "--"}, cmd...)
+		args := append([]string{"-c", gameCPUs}, cmd...)
 		return runCmd(ctx, "taskset", args, debug)
 	}
 
@@ -332,25 +343,60 @@ func userSystemdAvailable(ctx context.Context) bool {
 }
 
 func runCmd(ctx context.Context, bin string, args []string, debug bool) int {
-	debugf(debug, "exec: %s %s", bin, strings.Join(args, " "))
+	fullCmd := bin + " " + strings.Join(args, " ")
+	logInfo("exec: %s", fullCmd)
+	debugf(debug, "exec: %s", fullCmd)
 	c := exec.CommandContext(ctx, bin, args...)
 	c.Stdin = os.Stdin
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
+
+	// In debug mode, capture stdout/stderr to log file as well
+	if debug && logFile != nil {
+		stdoutPipe, _ := c.StdoutPipe()
+		stderrPipe, _ := c.StderrPipe()
+		if stdoutPipe != nil && stderrPipe != nil {
+			go func() {
+				combined := io.MultiReader(stdoutPipe, stderrPipe)
+				buf := make([]byte, 4096)
+				for {
+					n, err := combined.Read(buf)
+					if n > 0 {
+						os.Stdout.Write(buf[:n])
+						logFile.WriteString(string(buf[:n]))
+					}
+					if err != nil {
+						break
+					}
+				}
+			}()
+		} else {
+			c.Stdout = os.Stdout
+			c.Stderr = os.Stderr
+		}
+	} else {
+		c.Stdout = os.Stdout
+		c.Stderr = os.Stderr
+	}
+
 	if err := c.Run(); err != nil {
 		var ee *exec.ExitError
 		if errors.As(err, &ee) {
 			if ws, ok := ee.Sys().(syscall.WaitStatus); ok {
 				if ws.Signaled() {
-					return 128 + int(ws.Signal())
+					sig := ws.Signal()
+					logInfo("process killed by signal %d (%s)", sig, sig.String())
+					return 128 + int(sig)
 				}
+				logInfo("process exited with status %d", ws.ExitStatus())
 				return ws.ExitStatus()
 			}
+			logInfo("process exited with error: %v", err)
 			return 1
 		}
+		logError(err)
 		warnf("exec failed: %v", err)
 		return 1
 	}
+	logInfo("process completed successfully")
 	return 0
 }
 
@@ -425,6 +471,13 @@ func recoverPanic() {
 func logError(err error) {
 	if logFile != nil {
 		log.Printf("ERROR: %v", err)
+	}
+}
+
+// logInfo writes an informational message to the log file only (not stderr).
+func logInfo(format string, args ...any) {
+	if logFile != nil {
+		log.Printf("INFO: "+format, args...)
 	}
 }
 
