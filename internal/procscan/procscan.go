@@ -229,5 +229,5 @@ func isOwnedByUID(pid int, uid int) (bool, error) {
 	if err := scanner.Err(); err != nil {
 		return false, err
 	}
-	return false, errors.New("Uid line not found")
+	return false, errors.New("uid line not found")
 }

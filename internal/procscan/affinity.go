@@ -72,7 +72,7 @@ func allowedCPUsAt(procRoot string, pid int) (string, error) {
 	}
 	allowed, ok := allowedCPUsFromStatus(data)
 	if !ok {
-		return "", fmt.Errorf("Cpus_allowed_list not found")
+		return "", fmt.Errorf("cpus_allowed_list not found")
 	}
 	canonical, _, err := topology.CanonicalizeCPUList(allowed)
 	if err != nil {
@@ -163,5 +163,5 @@ func isOwnedByUIDAt(procRoot string, pid int, uid int) (bool, error) {
 	if err := scanner.Err(); err != nil {
 		return false, err
 	}
-	return false, fmt.Errorf("Uid line not found")
+	return false, fmt.Errorf("uid line not found")
 }

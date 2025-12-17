@@ -159,7 +159,7 @@ func Load(path string) (Config, error) {
 
 	if extra, err := loadIgnoreFile(cfg.IgnoreFile); err == nil {
 		cfg.IgnoreExe = dedupeNonEmpty(append(cfg.IgnoreExe, extra...), strings.ToLower)
-	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return Config{}, err
 	}
 
