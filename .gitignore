@@ -1,3 +1,13 @@
 .zig-cache/
 zig-out/
 *.o
+
+# Go
+/bin/
+/ccd-gamed
+*.test
+*.out
+go.work
+
+# Code CLI / agents
+.code/

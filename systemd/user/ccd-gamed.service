@@ -1,0 +1,14 @@
+[Unit]
+Description=CCD game daemon (user)
+Wants=game.slice
+After=game.slice
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/ccd-gamed --config %h/.config/ccd-gamed/config.toml
+Restart=on-failure
+RestartSec=1s
+
+[Install]
+WantedBy=default.target
+

@@ -1,0 +1,6 @@
+[Unit]
+Description=Game slice (user)
+
+[Slice]
+CPUAccounting=yes
+
