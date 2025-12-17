@@ -13,11 +13,11 @@ import (
 	"syscall"
 	"time"
 
-	"quicksetd/internal/config"
-	"quicksetd/internal/procscan"
-	"quicksetd/internal/state"
-	"quicksetd/internal/systemdctl"
-	"quicksetd/internal/topology"
+	"github.com/Reidond/ccdbind/internal/config"
+	"github.com/Reidond/ccdbind/internal/procscan"
+	"github.com/Reidond/ccdbind/internal/state"
+	"github.com/Reidond/ccdbind/internal/systemdctl"
+	"github.com/Reidond/ccdbind/internal/topology"
 )
 
 type runtime struct {
@@ -26,7 +26,12 @@ type runtime struct {
 	osCPUs   string
 	gameCPUs string
 
-	pidToUnit map[int]string
+	pidToUnit map[int]pidRecord
+}
+
+type pidRecord struct {
+	unit      string
+	startTime uint64
 }
 
 func main() {
@@ -76,7 +81,7 @@ func main() {
 		cfg.Interval = 2 * time.Second
 	}
 
-	r := &runtime{dryRun: *flagDryRun, pidToUnit: map[int]string{}}
+	r := &runtime{dryRun: *flagDryRun, pidToUnit: map[int]pidRecord{}}
 
 	effectiveOS, effectiveGame, err := resolveCPUs(cfg)
 	if err != nil {
@@ -133,7 +138,7 @@ func main() {
 	ticker := time.NewTicker(cfg.Interval)
 	defer ticker.Stop()
 
-	log.Printf("ccd-gamed started interval=%s os_cpus=%q game_cpus=%q dry_run=%v", cfg.Interval, r.osCPUs, r.gameCPUs, r.dryRun)
+	log.Printf("ccdbind started interval=%s os_cpus=%q game_cpus=%q dry_run=%v", cfg.Interval, r.osCPUs, r.gameCPUs, r.dryRun)
 	for {
 		select {
 		case <-ctx.Done():
@@ -226,7 +231,7 @@ func handleTick(ctx context.Context, r *runtime, sys systemdctl.Systemctl, mgr *
 			if err := state.Save(statePath, *st); err != nil {
 				return err
 			}
-			r.pidToUnit = map[int]string{}
+			r.pidToUnit = map[int]pidRecord{}
 		}
 		return nil
 	}
@@ -305,6 +310,7 @@ func handleTick(ctx context.Context, r *runtime, sys systemdctl.Systemctl, mgr *
 		}
 	}
 
+	alive := make(map[int]struct{}, 32)
 	gameIDs := make([]string, 0, len(games))
 	for gameID := range games {
 		gameIDs = append(gameIDs, gameID)
@@ -320,14 +326,28 @@ func handleTick(ctx context.Context, r *runtime, sys systemdctl.Systemctl, mgr *
 
 		pids := make([]int, 0, len(procs))
 		newPIDs := make([]int, 0, len(procs))
+		pidStarts := make(map[int]uint64, len(procs))
 		for _, gp := range procs {
+			alive[gp.PID] = struct{}{}
+			pidStarts[gp.PID] = gp.StartTime
+
 			pids = append(pids, gp.PID)
-			if r.pidToUnit[gp.PID] != unit {
+
+			rec, ok := r.pidToUnit[gp.PID]
+			if !ok || rec.unit != unit {
+				newPIDs = append(newPIDs, gp.PID)
+				continue
+			}
+			if rec.startTime == 0 || gp.StartTime == 0 {
+				newPIDs = append(newPIDs, gp.PID)
+				continue
+			}
+			if rec.startTime != gp.StartTime {
 				newPIDs = append(newPIDs, gp.PID)
 			}
 		}
 
-		desc := fmt.Sprintf("ccd-gamed game %s", gameID)
+		desc := fmt.Sprintf("ccdbind game %s", gameID)
 		ctx2, cancel := context.WithTimeout(ctx, 10*time.Second)
 		created, err := mgr.EnsureTransientScope(ctx2, unit, pids, "game.slice", desc)
 		cancel()
@@ -344,7 +364,7 @@ func handleTick(ctx context.Context, r *runtime, sys systemdctl.Systemctl, mgr *
 
 		if created {
 			for _, pid := range pids {
-				r.pidToUnit[pid] = unit
+				r.pidToUnit[pid] = pidRecord{unit: unit, startTime: pidStarts[pid]}
 			}
 		} else if len(newPIDs) > 0 {
 			ctx2, cancel = context.WithTimeout(ctx, 5*time.Second)
@@ -354,8 +374,14 @@ func handleTick(ctx context.Context, r *runtime, sys systemdctl.Systemctl, mgr *
 				return fmt.Errorf("AttachProcessesToUnit %s: %w", unit, err)
 			}
 			for _, pid := range newPIDs {
-				r.pidToUnit[pid] = unit
+				r.pidToUnit[pid] = pidRecord{unit: unit, startTime: pidStarts[pid]}
 			}
+		}
+	}
+
+	for pid := range r.pidToUnit {
+		if _, ok := alive[pid]; !ok {
+			delete(r.pidToUnit, pid)
 		}
 	}
 

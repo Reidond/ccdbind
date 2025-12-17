@@ -1,6 +1,6 @@
-# quicksetd
+# ccdbind
 
-This repo contains `ccd-gamed`, a systemd *user* daemon that:
+This repo contains `ccdbind`, a systemd *user* daemon that:
 
 - Detects CCD/L3 CPU groups from sysfs.
 - When it sees a Steam/Proton game process, it pins user slices (default: `app.slice`, `background.slice`) to the OS CPUs.
@@ -10,26 +10,26 @@ This repo contains `ccd-gamed`, a systemd *user* daemon that:
 
 ```sh
 go test ./...
-go build ./cmd/ccd-gamed
+go build ./cmd/ccdbind
 ```
 
 ## Install (user service)
 
 ```sh
-install -Dm755 ./ccd-gamed ~/.local/bin/ccd-gamed
-install -Dm644 systemd/user/ccd-gamed.service ~/.config/systemd/user/ccd-gamed.service
+install -Dm755 ./ccdbind ~/.local/bin/ccdbind
+install -Dm644 systemd/user/ccdbind.service ~/.config/systemd/user/ccdbind.service
 install -Dm644 systemd/user/game.slice ~/.config/systemd/user/game.slice
-install -Dm644 ./config.example.toml ~/.config/ccd-gamed/config.toml
+install -Dm644 ./config.example.toml ~/.config/ccdbind/config.toml
 
 systemctl --user daemon-reload
-systemctl --user enable --now ccd-gamed.service
+systemctl --user enable --now ccdbind.service
 ```
 
 ## Config
 
-- Config file path (default): `~/.config/ccd-gamed/config.toml`
-- Optional ignore list: `~/.config/ccd-gamed/ignore.txt` (one executable basename per line, `#` comments allowed)
-- State file (default): `~/.local/state/ccd-gamed/state.json`
+- Config file path (default): `~/.config/ccdbind/config.toml`
+- Optional ignore list: `~/.config/ccdbind/ignore.txt` (one executable basename per line, `#` comments allowed)
+- State file (default): `~/.local/state/ccdbind/state.json`
 
 Start from `config.example.toml`.
 
@@ -43,7 +43,7 @@ Start from `config.example.toml`.
 
 ## D-Bus notes
 
-`ccd-gamed` uses the systemd user manager D-Bus API on the user bus:
+`ccdbind` uses the systemd user manager D-Bus API on the user bus:
 
 - `org.freedesktop.systemd1.Manager.StartTransientUnit` signature: `(s name, s mode, a(sv) properties, a(sa(sv)) aux)`
 - `org.freedesktop.systemd1.Manager.AttachProcessesToUnit` signature: `(s unit, s subcgroup, au pids)`

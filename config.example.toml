@@ -1,4 +1,4 @@
-# ccd-gamed example config
+# ccdbind example config
 
 # Poll interval.
 interval = "2s"
@@ -18,8 +18,8 @@ ignore_exe = [
   "reaper",
 ]
 
-# Optional extra ignore list file. Defaults to ~/.config/ccd-gamed/ignore.txt.
-# ignore_file = "/home/you/.config/ccd-gamed/ignore.txt"
+# Optional extra ignore list file. Defaults to ~/.config/ccdbind/ignore.txt.
+# ignore_file = "/home/you/.config/ccdbind/ignore.txt"
 
 # Slices to pin to OS CPUs while any game is active.
 pin_slices = ["app.slice", "background.slice"]
@@ -30,4 +30,3 @@ pin_session_slice = false
 # Optional overrides (skip sysfs detection).
 # os_cpus = "0-7"
 # game_cpus = "8-15"
-

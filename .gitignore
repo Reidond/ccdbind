@@ -4,7 +4,7 @@ zig-out/
 
 # Go
 /bin/
-/ccd-gamed
+/ccdbind
 *.test
 *.out
 go.work

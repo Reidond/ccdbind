@@ -13,7 +13,7 @@ func TestDefaultPath_UsesXDGStateHome(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DefaultPath: %v", err)
 	}
-	if filepath.Dir(path) != filepath.Join(dir, "ccd-gamed") {
+	if filepath.Dir(path) != filepath.Join(dir, "ccdbind") {
 		t.Fatalf("unexpected path: %s", path)
 	}
 }

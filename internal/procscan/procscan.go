@@ -12,10 +12,11 @@ import (
 )
 
 type GameProcess struct {
-	PID      int
-	Exe      string
-	GameID   string
-	IDSource string
+	PID       int
+	StartTime uint64
+	Exe       string
+	GameID    string
+	IDSource  string
 }
 
 type Scanner struct {
@@ -90,10 +91,41 @@ func (s *Scanner) Scan() (map[string][]GameProcess, error) {
 			continue
 		}
 
-		gp := GameProcess{PID: pid, Exe: exeBase, GameID: id, IDSource: src}
+		startTime, err := procStartTime(pid)
+		if err != nil {
+			startTime = 0
+		}
+		gp := GameProcess{PID: pid, StartTime: startTime, Exe: exeBase, GameID: id, IDSource: src}
 		results[id] = append(results[id], gp)
 	}
 	return results, nil
+}
+
+func procStartTime(pid int) (uint64, error) {
+	path := filepath.Join("/proc", strconv.Itoa(pid), "stat")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	line := strings.TrimSpace(string(data))
+	if line == "" {
+		return 0, fmt.Errorf("empty stat")
+	}
+
+	idx := strings.LastIndexByte(line, ')')
+	if idx == -1 {
+		return 0, fmt.Errorf("invalid stat format")
+	}
+	if idx+2 >= len(line) {
+		return 0, fmt.Errorf("invalid stat format")
+	}
+
+	fields := strings.Fields(line[idx+2:])
+	// fields[0] is state (field 3), starttime is field 22 => index 19 here.
+	if len(fields) <= 19 {
+		return 0, fmt.Errorf("stat too short")
+	}
+	return strconv.ParseUint(fields[19], 10, 64)
 }
 
 func toSetLower(in []string) map[string]struct{} {

@@ -85,7 +85,7 @@ func DefaultConfigPath() (string, error) {
 		}
 		base = filepath.Join(home, ".config")
 	}
-	return filepath.Join(base, "ccd-gamed", "config.toml"), nil
+	return filepath.Join(base, "ccdbind", "config.toml"), nil
 }
 
 func DefaultIgnorePath() (string, error) {
@@ -97,7 +97,7 @@ func DefaultIgnorePath() (string, error) {
 		}
 		base = filepath.Join(home, ".config")
 	}
-	return filepath.Join(base, "ccd-gamed", "ignore.txt"), nil
+	return filepath.Join(base, "ccdbind", "ignore.txt"), nil
 }
 
 func Load(path string) (Config, error) {

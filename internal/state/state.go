@@ -28,7 +28,7 @@ func DefaultPath() (string, error) {
 		}
 		base = filepath.Join(home, ".local", "state")
 	}
-	return filepath.Join(base, "ccd-gamed", "state.json"), nil
+	return filepath.Join(base, "ccdbind", "state.json"), nil
 }
 
 func Load(path string) (File, error) {

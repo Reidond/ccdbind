@@ -20,7 +20,7 @@ func TestLoad_ParsesTOMLAndIgnoreFile(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
 
-	confDir := filepath.Join(dir, "ccd-gamed")
+	confDir := filepath.Join(dir, "ccdbind")
 	if err := os.MkdirAll(confDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestLoad_IgnoreFileWithoutConfig(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
 
-	confDir := filepath.Join(dir, "ccd-gamed")
+	confDir := filepath.Join(dir, "ccdbind")
 	if err := os.MkdirAll(confDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
