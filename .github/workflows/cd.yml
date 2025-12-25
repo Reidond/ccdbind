@@ -1,9 +1,7 @@
 name: CD
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  push:
     tags:
       - "v*.*.*"
 
@@ -14,10 +12,14 @@ env:
   GO_VERSION: "1.22"
 
 jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
   build:
     name: Build
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'success'
+    needs: [ci]
     strategy:
       matrix:
         include:
@@ -29,7 +31,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_branch }}
           fetch-depth: 0
 
       - name: Setup Go
@@ -40,7 +41,7 @@ jobs:
 
       - name: Get version
         id: version
-        run: echo "version=${{ github.event.workflow_run.head_branch }}" >> "$GITHUB_OUTPUT"
+        run: echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Build binaries
         env:
@@ -85,7 +86,7 @@ jobs:
 
       - name: Get version
         id: version
-        run: echo "version=${{ github.event.workflow_run.head_branch }}" >> "$GITHUB_OUTPUT"
+        run: echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
