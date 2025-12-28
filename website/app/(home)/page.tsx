@@ -14,7 +14,7 @@ export default function HomePage() {
   return (
     <main className="flex flex-col min-h-screen bg-fd-background text-fd-foreground overflow-hidden selection:bg-fd-primary/20">
       <section className="relative flex flex-col items-center justify-center px-6 py-24 text-center overflow-hidden lg:py-32">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-fd-primary/10 blur-[100px] rounded-full pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-200 h-125 bg-fd-primary/10 blur-[100px] rounded-full pointer-events-none" />
 
         <div className="relative z-10 max-w-4xl space-y-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-fd-secondary/50 border border-fd-border text-xs font-medium text-fd-muted-foreground mb-4">
@@ -25,7 +25,7 @@ export default function HomePage() {
             v0.1.0 Now Available
           </div>
 
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-fd-foreground to-fd-foreground/60">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight bg-clip-text text-transparent bg-linear-to-b from-fd-foreground to-fd-foreground/60">
             Eliminate Stutter.
             <br />
             <span className="text-fd-primary">Maximize FPS.</span>
@@ -46,7 +46,7 @@ export default function HomePage() {
               <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
             </Link>
             <Link
-              href="https://github.com/youruser/quicksetd"
+              href="https://github.com/Reidond/ccdbind"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-fd-border bg-fd-secondary px-8 text-sm font-medium transition-colors hover:bg-fd-secondary/80 hover:text-fd-foreground"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # uninstall.sh - Uninstall ccdbind and ccdpin
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 set -euo pipefail
 

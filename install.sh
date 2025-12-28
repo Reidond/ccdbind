@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # install.sh - Install ccdbind and ccdpin from GitHub releases
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/Reidond/ccdbind/main/install.sh | bash
